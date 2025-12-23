@@ -1,5 +1,5 @@
 {
-  "name": "Copy of of copy Copy of PON Loss Pro v5.5",
-  "description": "Calculadora profissional de orçamento óptico para redes GPON/XGSPON com arrastre vertical e exportação de projeto.",
+  "name": "PON Loss Pro v1.2",
+  "description": "Calculadora profissional de orçamento óptico GPON com suporte a splitters desbalanceados e análise técnica por IA Gemini 3.",
   "requestFramePermissions": []
 }
