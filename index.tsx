@@ -10,7 +10,7 @@ import {
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { GoogleGenAI } from "@google/genai";
 
-// --- Tipos e Enums ---
+// --- Tipos ---
 enum NodeType {
   OLT = 'OLT',
   FIBER = 'FIBER',
@@ -40,7 +40,7 @@ interface NetworkNode {
   powerOut?: number;
 }
 
-// --- Constantes Técnicas ---
+// --- Constantes ---
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#0ea5e9'];
 const INITIAL_DEFAULTS = {
   attenuation: 0.35,
@@ -62,7 +62,7 @@ const UNBALANCED_SPLITTER_LOSSES: Record<string, [number, number]> = {
   '50/50': [3.7, 3.7]
 };
 
-// --- Componentes Auxiliares ---
+// --- Helper Component ---
 const EditableValue: React.FC<{
   value: number;
   onCommit: (val: number) => void;
@@ -90,14 +90,13 @@ const EditableValue: React.FC<{
         onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
         className={`bg-transparent border-none p-0 focus:ring-0 text-inherit ${className}`}
       />
-      {suffix && <span className="text-[0.6rem] opacity-40 font-bold uppercase">{suffix}</span>}
+      {suffix && <span className="text-[0.6rem] opacity-40 font-bold">{suffix}</span>}
     </div>
   );
 };
 
-// --- App Principal ---
 const App: React.FC = () => {
-  const [projectName, setProjectName] = useState("Novo Projeto de Rede PON");
+  const [projectName, setProjectName] = useState("Novo Projeto PON");
   const [oltPower, setOltPower] = useState<number>(5.0);
   const [zoom, setZoom] = useState<number>(0.9);
   const [showConfig, setShowConfig] = useState(false);
@@ -107,7 +106,7 @@ const App: React.FC = () => {
   const [draggingNode, setDraggingNode] = useState<{ id: string; startY: number; initialOffset: number } | null>(null);
   
   const [rootNode, setRootNode] = useState<NetworkNode>({
-    id: 'root', type: NodeType.OLT, name: 'OLT Principal', loss: 0, offsetY: 0, branches: [[]]
+    id: 'root', type: NodeType.OLT, name: 'OLT', loss: 0, offsetY: 0, branches: [[]]
   });
 
   const calculateNetwork = useCallback((node: NetworkNode, inputPower: number): NetworkNode => {
@@ -174,14 +173,14 @@ const App: React.FC = () => {
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const minSignal = Math.min(...onuList.map(o => o.power));
-      const prompt = `Analise tecnicamente este projeto PON: OLT em ${oltPower}dBm, ${onuList.length} ONUs ativas, sinal mínimo de ${minSignal.toFixed(2)}dBm. Dê um parecer técnico curto sobre a viabilidade e saúde desta rede GPON. Responda em Português.`;
+      const prompt = `Analise este projeto PON: OLT ${oltPower}dBm, ${onuList.length} ONUs, pior sinal ${minSignal.toFixed(2)}dBm. Dê um parecer curto em Português sobre a saúde desta rede GPON.`;
       const response = await ai.models.generateContent({
         model: 'gemini-3-pro-preview',
         contents: prompt,
       });
       setAiAnalysis(response.text);
     } catch (e) {
-      setAiAnalysis("Não foi possível realizar a análise automática no momento.");
+      setAiAnalysis("Falha na análise. Verifique sua chave Gemini.");
     } finally {
       setIsAnalyzing(false);
     }
@@ -271,7 +270,7 @@ const App: React.FC = () => {
             <div className="w-44 h-28 bg-indigo-600 rounded-3xl shadow-xl flex flex-col p-5 text-white border-b-8 border-indigo-900 relative">
               <Server size={22} className="opacity-40" />
               <div className="mt-auto">
-                <span className="text-[9px] font-black opacity-60 uppercase block mb-1 tracking-widest">TX OLT</span>
+                <span className="text-[9px] font-black opacity-60 uppercase block mb-1">TX OLT</span>
                 <EditableValue value={oltPower} onCommit={setOltPower} className="text-2xl font-black w-20" suffix="dBm" />
               </div>
             </div>
@@ -351,11 +350,11 @@ const App: React.FC = () => {
                   <NodeComponent key={child.id} node={child} parentId={node.id} bIdx={bi} nIdx={ni} />
                 ))}
                 <div className="ml-6 flex items-center gap-1.5 p-1.5 bg-white/50 border-2 border-dashed border-slate-200 rounded-2xl no-print hover:border-indigo-400 transition-all opacity-40 hover:opacity-100 h-10">
-                   <button onClick={() => addNode(node.id, bi, NodeType.FIBER)} className="p-1.5 text-blue-500 hover:scale-125 transition-all" title="Cabo"><Cable size={16}/></button>
-                   <button onClick={() => addNode(node.id, bi, NodeType.SPLITTER)} className="p-1.5 text-amber-500 hover:scale-125 transition-all" title="Splitter Bal."><Zap size={16}/></button>
-                   <button onClick={() => addNode(node.id, bi, NodeType.SPLITTER_UNBALANCED)} className="p-1.5 text-orange-500 hover:scale-125 transition-all" title="Splitter Desb."><GitBranch size={16}/></button>
-                   <button onClick={() => addNode(node.id, bi, NodeType.CONNECTOR)} className="p-1.5 text-emerald-500 hover:scale-125 transition-all" title="Conector"><Settings2 size={16}/></button>
-                   <button onClick={() => addNode(node.id, bi, NodeType.ONU)} className="p-1.5 text-slate-500 hover:scale-125 transition-all" title="ONU"><ArrowRight size={16}/></button>
+                   <button onClick={() => addNode(node.id, bi, NodeType.FIBER)} className="p-1.5 text-blue-500 hover:scale-125 transition-all"><Cable size={16}/></button>
+                   <button onClick={() => addNode(node.id, bi, NodeType.SPLITTER)} className="p-1.5 text-amber-500 hover:scale-125 transition-all"><Zap size={16}/></button>
+                   <button onClick={() => addNode(node.id, bi, NodeType.SPLITTER_UNBALANCED)} className="p-1.5 text-orange-500 hover:scale-125 transition-all"><GitBranch size={16}/></button>
+                   <button onClick={() => addNode(node.id, bi, NodeType.CONNECTOR)} className="p-1.5 text-emerald-500 hover:scale-125 transition-all"><Settings2 size={16}/></button>
+                   <button onClick={() => addNode(node.id, bi, NodeType.ONU)} className="p-1.5 text-slate-500 hover:scale-125 transition-all"><ArrowRight size={16}/></button>
                 </div>
               </div>
             ))}
