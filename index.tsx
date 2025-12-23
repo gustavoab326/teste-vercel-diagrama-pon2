@@ -7,10 +7,10 @@ import {
   GripVertical, Target, Sparkles, X, Network, Activity, Download, Search, ClipboardList,
   ZoomIn, ZoomOut, Settings
 } from 'lucide-react';
-import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { GoogleGenAI } from "@google/genai";
 
-// --- Tipos ---
+// --- Tipos e Enums ---
 enum NodeType {
   OLT = 'OLT',
   FIBER = 'FIBER',
@@ -40,7 +40,7 @@ interface NetworkNode {
   powerOut?: number;
 }
 
-// --- Constantes ---
+// --- Constantes Técnicas ---
 const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#0ea5e9'];
 const INITIAL_DEFAULTS = {
   attenuation: 0.35,
@@ -63,7 +63,6 @@ const UNBALANCED_SPLITTER_LOSSES: Record<string, [number, number]> = {
 };
 
 // --- Componentes Auxiliares ---
-
 const EditableValue: React.FC<{
   value: number;
   onCommit: (val: number) => void;
@@ -91,13 +90,14 @@ const EditableValue: React.FC<{
         onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
         className={`bg-transparent border-none p-0 focus:ring-0 text-inherit ${className}`}
       />
-      {suffix && <span className="text-[0.6rem] opacity-40 font-bold">{suffix}</span>}
+      {suffix && <span className="text-[0.6rem] opacity-40 font-bold uppercase">{suffix}</span>}
     </div>
   );
 };
 
+// --- App Principal ---
 const App: React.FC = () => {
-  const [projectName, setProjectName] = useState("Novo Projeto PON");
+  const [projectName, setProjectName] = useState("Novo Projeto de Rede PON");
   const [oltPower, setOltPower] = useState<number>(5.0);
   const [zoom, setZoom] = useState<number>(0.9);
   const [showConfig, setShowConfig] = useState(false);
@@ -107,7 +107,7 @@ const App: React.FC = () => {
   const [draggingNode, setDraggingNode] = useState<{ id: string; startY: number; initialOffset: number } | null>(null);
   
   const [rootNode, setRootNode] = useState<NetworkNode>({
-    id: 'root', type: NodeType.OLT, name: 'OLT', loss: 0, offsetY: 0, branches: [[]]
+    id: 'root', type: NodeType.OLT, name: 'OLT Principal', loss: 0, offsetY: 0, branches: [[]]
   });
 
   const calculateNetwork = useCallback((node: NetworkNode, inputPower: number): NetworkNode => {
@@ -174,14 +174,14 @@ const App: React.FC = () => {
     try {
       const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
       const minSignal = Math.min(...onuList.map(o => o.power));
-      const prompt = `Analise tecnicamente este projeto PON: Nome: ${projectName}. OLT: ${oltPower}dBm. Total ONUs: ${onuList.length}. Pior sinal: ${minSignal.toFixed(2)}dBm. Dê um parecer técnico curto sobre a saúde desta rede GPON. Responda em Português.`;
+      const prompt = `Analise tecnicamente este projeto PON: OLT em ${oltPower}dBm, ${onuList.length} ONUs ativas, sinal mínimo de ${minSignal.toFixed(2)}dBm. Dê um parecer técnico curto sobre a viabilidade e saúde desta rede GPON. Responda em Português.`;
       const response = await ai.models.generateContent({
         model: 'gemini-3-pro-preview',
         contents: prompt,
       });
       setAiAnalysis(response.text);
     } catch (e) {
-      setAiAnalysis("Não foi possível gerar a análise. Verifique sua conexão e chave API.");
+      setAiAnalysis("Não foi possível realizar a análise automática no momento.");
     } finally {
       setIsAnalyzing(false);
     }
@@ -213,8 +213,8 @@ const App: React.FC = () => {
     let newNode: NetworkNode = { id: newId, type, name: type, loss: 0, offsetY: 0 };
     switch (type) {
       case NodeType.FIBER: newNode = { ...newNode, name: 'Fibra', length: 1, unit: 'km', attenuationCoefficient: globalDefaults.attenuation }; break;
-      case NodeType.SPLITTER: newNode = { ...newNode, name: 'Splitter 1:2', loss: SPLITTER_LOSSES['1:2'], splitterRatio: '1:2', branches: [[], []] }; break;
-      case NodeType.SPLITTER_UNBALANCED: newNode = { ...newNode, name: 'Splitter Desb.', splitterRatio: '10/90', branches: [[], []] }; break;
+      case NodeType.SPLITTER: newNode = { ...newNode, name: 'Splitter', loss: SPLITTER_LOSSES['1:2'], splitterRatio: '1:2', branches: [[], []] }; break;
+      case NodeType.SPLITTER_UNBALANCED: newNode = { ...newNode, name: 'Desb.', splitterRatio: '10/90', branches: [[], []] }; break;
       case NodeType.CONNECTOR: newNode.loss = globalDefaults.connector; break;
       case NodeType.SPLICE: newNode.loss = globalDefaults.splice; break;
       case NodeType.ONU: newNode.name = `ONU ${onuList.length + 1}`; break;
@@ -271,7 +271,7 @@ const App: React.FC = () => {
             <div className="w-44 h-28 bg-indigo-600 rounded-3xl shadow-xl flex flex-col p-5 text-white border-b-8 border-indigo-900 relative">
               <Server size={22} className="opacity-40" />
               <div className="mt-auto">
-                <span className="text-[9px] font-black opacity-60 uppercase block mb-1">TX OLT</span>
+                <span className="text-[9px] font-black opacity-60 uppercase block mb-1 tracking-widest">TX OLT</span>
                 <EditableValue value={oltPower} onCommit={setOltPower} className="text-2xl font-black w-20" suffix="dBm" />
               </div>
             </div>
@@ -350,12 +350,12 @@ const App: React.FC = () => {
                 {branch.map((child, ni) => (
                   <NodeComponent key={child.id} node={child} parentId={node.id} bIdx={bi} nIdx={ni} />
                 ))}
-                <div className="ml-6 flex items-center gap-1.5 p-1.5 bg-white/50 border-2 border-dashed border-slate-200 rounded-2xl no-print hover:border-indigo-400 transition-all opacity-40 hover:opacity-100 h-10 group/add">
-                   <button onClick={() => addNode(node.id, bi, NodeType.FIBER)} className="p-1.5 text-blue-500 hover:scale-125 transition-all"><Cable size={16}/></button>
-                   <button onClick={() => addNode(node.id, bi, NodeType.SPLITTER)} className="p-1.5 text-amber-500 hover:scale-125 transition-all"><Zap size={16}/></button>
-                   <button onClick={() => addNode(node.id, bi, NodeType.SPLITTER_UNBALANCED)} className="p-1.5 text-orange-500 hover:scale-125 transition-all"><GitBranch size={16}/></button>
-                   <button onClick={() => addNode(node.id, bi, NodeType.CONNECTOR)} className="p-1.5 text-emerald-500 hover:scale-125 transition-all"><Settings2 size={16}/></button>
-                   <button onClick={() => addNode(node.id, bi, NodeType.ONU)} className="p-1.5 text-slate-500 hover:scale-125 transition-all"><ArrowRight size={16}/></button>
+                <div className="ml-6 flex items-center gap-1.5 p-1.5 bg-white/50 border-2 border-dashed border-slate-200 rounded-2xl no-print hover:border-indigo-400 transition-all opacity-40 hover:opacity-100 h-10">
+                   <button onClick={() => addNode(node.id, bi, NodeType.FIBER)} className="p-1.5 text-blue-500 hover:scale-125 transition-all" title="Cabo"><Cable size={16}/></button>
+                   <button onClick={() => addNode(node.id, bi, NodeType.SPLITTER)} className="p-1.5 text-amber-500 hover:scale-125 transition-all" title="Splitter Bal."><Zap size={16}/></button>
+                   <button onClick={() => addNode(node.id, bi, NodeType.SPLITTER_UNBALANCED)} className="p-1.5 text-orange-500 hover:scale-125 transition-all" title="Splitter Desb."><GitBranch size={16}/></button>
+                   <button onClick={() => addNode(node.id, bi, NodeType.CONNECTOR)} className="p-1.5 text-emerald-500 hover:scale-125 transition-all" title="Conector"><Settings2 size={16}/></button>
+                   <button onClick={() => addNode(node.id, bi, NodeType.ONU)} className="p-1.5 text-slate-500 hover:scale-125 transition-all" title="ONU"><ArrowRight size={16}/></button>
                 </div>
               </div>
             ))}
@@ -394,18 +394,18 @@ const App: React.FC = () => {
               onChange={(e) => setProjectName(e.target.value)} 
               className="text-lg font-black text-slate-800 bg-transparent border-none p-0 focus:ring-0 uppercase tracking-tight"
             />
-            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Calculadora PON Loss Pro</p>
+            <p className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">Calculadora PON Loss Pro v1.2</p>
           </div>
         </div>
         <div className="flex items-center gap-4">
           <div className="flex bg-slate-100 rounded-xl p-1">
-            <button onClick={() => setZoom(z => Math.max(0.2, z - 0.1))} className="p-2 text-slate-500"><ZoomOut size={18}/></button>
+            <button onClick={() => setZoom(z => Math.max(0.2, z - 0.1))} className="p-2 text-slate-500 hover:bg-white rounded-lg transition-all"><ZoomOut size={18}/></button>
             <div className="px-3 text-[10px] font-black text-slate-400 flex items-center">{(zoom * 100).toFixed(0)}%</div>
-            <button onClick={() => setZoom(z => Math.min(2.0, z + 0.1))} className="p-2 text-slate-500"><ZoomIn size={18}/></button>
+            <button onClick={() => setZoom(z => Math.min(2.0, z + 0.1))} className="p-2 text-slate-500 hover:bg-white rounded-lg transition-all"><ZoomIn size={18}/></button>
           </div>
-          <button onClick={() => setShowConfig(true)} className="p-3 bg-white border border-slate-200 rounded-xl text-slate-600"><Settings size={20}/></button>
-          <button onClick={() => window.print()} className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-black text-xs uppercase flex items-center gap-2">
-            <Download size={18}/> Exportar
+          <button onClick={() => setShowConfig(true)} className="p-3 bg-white border border-slate-200 rounded-xl text-slate-600 hover:bg-slate-50 transition-all"><Settings size={20}/></button>
+          <button onClick={() => window.print()} className="bg-indigo-600 text-white px-6 py-3 rounded-xl font-black text-xs uppercase flex items-center gap-2 hover:bg-indigo-700 transition-all shadow-lg shadow-indigo-100">
+            <Download size={18}/> Exportar Relatório
           </button>
         </div>
       </header>
@@ -417,7 +417,7 @@ const App: React.FC = () => {
         </main>
         <aside className="w-[400px] bg-white border-l border-slate-200 flex flex-col no-print">
            <div className="p-8 border-b border-slate-100 space-y-6">
-              <h3 className="text-sm font-black text-slate-800 uppercase flex items-center gap-2"><Activity size={18} className="text-indigo-600"/> Dashboard</h3>
+              <h3 className="text-sm font-black text-slate-800 uppercase flex items-center gap-2"><Activity size={18} className="text-indigo-600"/> Monitor de Rede</h3>
               <div className="grid grid-cols-2 gap-4">
                  <div className="bg-slate-50 p-5 rounded-3xl border border-slate-100">
                     <span className="text-[9px] font-black text-slate-400 uppercase block mb-1">Terminais</span>
@@ -444,23 +444,23 @@ const App: React.FC = () => {
            <div className="flex-1 overflow-y-auto p-8 space-y-8 custom-scrollbar">
               <div className="p-6 bg-indigo-50 rounded-[2rem] border border-indigo-100 relative">
                  <div className="flex justify-between items-center mb-4 relative z-10">
-                   <h5 className="text-[10px] font-black text-indigo-600 uppercase flex items-center gap-2"><Sparkles size={14}/> Análise IA</h5>
-                   <button onClick={runAiAnalysis} disabled={isAnalyzing || !onuList.length} className="p-2 bg-indigo-600 text-white rounded-lg disabled:opacity-50">
+                   <h5 className="text-[10px] font-black text-indigo-600 uppercase flex items-center gap-2"><Sparkles size={14}/> Análise Técnica IA</h5>
+                   <button onClick={runAiAnalysis} disabled={isAnalyzing || !onuList.length} className="p-2 bg-indigo-600 text-white rounded-lg disabled:opacity-50 hover:bg-indigo-700 transition-all">
                      {isAnalyzing ? <RefreshCcw size={14} className="animate-spin"/> : <Search size={14}/>}
                    </button>
                  </div>
                  <p className="text-[11px] text-indigo-900/70 font-bold leading-relaxed italic relative z-10">
-                   {aiAnalysis || "Clique na lupa para análise da IA sobre o projeto."}
+                   {aiAnalysis || "Solicite uma análise da IA para validar o orçamento óptico do projeto."}
                  </p>
               </div>
               <div>
-                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Terminais</h4>
+                <h4 className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-4">Lista de Terminais</h4>
                 <div className="space-y-3">
                   {onuList.map((o, i) => (
-                    <div key={i} className="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-100">
+                    <div key={i} className="flex justify-between items-center p-4 bg-slate-50 rounded-2xl border border-slate-100 hover:border-indigo-200 transition-all">
                        <div className="flex flex-col">
                          <span className="text-[11px] font-black text-slate-700">{o.name}</span>
-                         <span className="text-[8px] font-bold text-slate-400 truncate w-32">{o.path}</span>
+                         <span className="text-[8px] font-bold text-slate-400 truncate w-32 uppercase tracking-tighter">{o.path}</span>
                        </div>
                        <span className={`text-xs font-black ${o.power < -28 ? 'text-red-500' : 'text-emerald-500'}`}>{o.power.toFixed(1)} dBm</span>
                     </div>
@@ -472,10 +472,10 @@ const App: React.FC = () => {
       </div>
       {showConfig && (
         <div className="fixed inset-0 z-[500] flex items-center justify-center bg-black/40 backdrop-blur-sm px-4">
-          <div className="bg-white rounded-[2.5rem] w-full max-w-md p-10 shadow-2xl">
+          <div className="bg-white rounded-[2.5rem] w-full max-w-md p-10 shadow-2xl animate-in zoom-in duration-200">
             <div className="flex justify-between items-center mb-8">
-              <h2 className="text-xl font-black uppercase">Padrões da Rede</h2>
-              <button onClick={() => setShowConfig(false)} className="p-2 hover:bg-slate-100 rounded-full"><X size={20}/></button>
+              <h2 className="text-xl font-black uppercase tracking-tight">Padrões de Perda</h2>
+              <button onClick={() => setShowConfig(false)} className="p-2 hover:bg-slate-100 rounded-full transition-all"><X size={20}/></button>
             </div>
             <div className="space-y-6">
               {[
@@ -483,16 +483,16 @@ const App: React.FC = () => {
                 { label: 'Conector (dB)', key: 'connector', icon: <Settings2 size={18}/> },
                 { label: 'Emenda (dB)', key: 'splice', icon: <Scissors size={18}/> }
               ].map(item => (
-                <div key={item.key} className="flex items-center justify-between p-5 bg-slate-50 rounded-3xl">
+                <div key={item.key} className="flex items-center justify-between p-5 bg-slate-50 rounded-3xl border border-slate-100">
                    <div className="flex items-center gap-3">
                      <div className="text-slate-400">{item.icon}</div>
-                     <span className="text-[11px] font-black uppercase">{item.label}</span>
+                     <span className="text-[11px] font-black uppercase tracking-tight">{item.label}</span>
                    </div>
                    <EditableValue value={(globalDefaults as any)[item.key]} onCommit={(v) => setGlobalDefaults({...globalDefaults, [item.key]: v})} className="w-12 text-center text-sm font-black text-indigo-600" />
                 </div>
               ))}
             </div>
-            <button onClick={() => setShowConfig(false)} className="w-full mt-10 py-5 bg-indigo-600 text-white rounded-[2rem] font-black uppercase">Fechar</button>
+            <button onClick={() => setShowConfig(false)} className="w-full mt-10 py-5 bg-indigo-600 text-white rounded-[2rem] font-black uppercase text-xs tracking-widest shadow-xl shadow-indigo-100 hover:bg-indigo-700 transition-all">Fechar</button>
           </div>
         </div>
       )}

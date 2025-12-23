@@ -1,5 +1,5 @@
 {
-  "name": "PON Loss Pro v1.2",
-  "description": "Calculadora profissional de orçamento óptico GPON com suporte a splitters desbalanceados e análise técnica por IA Gemini 3.",
+  "name": "PON Loss Pro Stable v1.2",
+  "description": "Calculadora profissional de orçamento óptico GPON com suporte a cascateamento desbalanceado e análise por IA.",
   "requestFramePermissions": []
 }
